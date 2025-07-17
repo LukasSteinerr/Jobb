@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/material.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:uuid/uuid.dart';
 import '../models/folder.dart';
 
@@ -27,24 +29,33 @@ class _FolderScreenState extends State<FolderScreen> {
   Future<void> _scanDocument() async {
     try {
       final List<String>? pictures = await CunningDocumentScanner.getPictures();
-      if (pictures != null) {
+      if (pictures != null && pictures.isNotEmpty) {
         final appDir = await getApplicationDocumentsDirectory();
         final folderDir = Directory('${appDir.path}/${_currentFolder.id}');
         if (!await folderDir.exists()) {
           await folderDir.create(recursive: true);
         }
 
-        List<String> newImagePaths = [];
+        final pdf = pw.Document();
         for (var picturePath in pictures) {
           final file = File(picturePath);
-          final fileName = Uuid().v4();
-          final newPath = '${folderDir.path}/$fileName.jpg';
-          await file.copy(newPath);
-          newImagePaths.add(newPath);
+          final image = pw.MemoryImage(file.readAsBytesSync());
+          pdf.addPage(
+            pw.Page(
+              build: (pw.Context context) {
+                return pw.Center(child: pw.Image(image));
+              },
+            ),
+          );
         }
 
+        final fileName = Uuid().v4();
+        final newPath = '${folderDir.path}/$fileName.pdf';
+        final pdfFile = File(newPath);
+        await pdfFile.writeAsBytes(await pdf.save());
+
         setState(() {
-          _currentFolder.imagePaths.addAll(newImagePaths);
+          _currentFolder.imagePaths.add(newPath);
         });
         widget.onUpdate(_currentFolder);
       }
@@ -71,20 +82,55 @@ class _FolderScreenState extends State<FolderScreen> {
           ? ListView.builder(
               itemCount: _currentFolder.imagePaths.length,
               itemBuilder: (context, index) {
+                final path = _currentFolder.imagePaths[index];
+                final isPdf = path.toLowerCase().endsWith('.pdf');
+
                 return Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Stack(
-                    children: [
-                      Image.file(File(_currentFolder.imagePaths[index])),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteImage(index),
+                  child: InkWell(
+                    onTap: () {
+                      if (isPdf) {
+                        OpenFile.open(path);
+                      }
+                    },
+                    child: Stack(
+                      children: [
+                        if (isPdf)
+                          Container(
+                            padding: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.picture_as_pdf,
+                                  size: 50,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    path.split('/').last,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Image.file(File(path)),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteImage(index),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
