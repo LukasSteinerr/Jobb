@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:tesseract_ocr/tesseract_ocr.dart';
 import 'package:uuid/uuid.dart';
 import '../models/folder.dart';
 
@@ -17,11 +18,55 @@ class FolderScreen extends StatefulWidget {
 
 class _FolderScreenState extends State<FolderScreen> {
   late Folder _currentFolder;
+  bool _isPerformingOcr = false;
 
   @override
   void initState() {
     super.initState();
     _currentFolder = widget.folder;
+  }
+
+  Future<void> _performOcr() async {
+    if (_currentFolder.imagePaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No images to perform OCR on.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isPerformingOcr = true;
+    });
+
+    try {
+      String allExtractedText = '';
+      for (var imagePath in _currentFolder.imagePaths) {
+        final extractedText = await TesseractOcr.extractText(imagePath);
+        allExtractedText += extractedText + '\n\n';
+      }
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Extracted Text'),
+          content: SingleChildScrollView(child: Text(allExtractedText)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      print('Error performing OCR: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error performing OCR: $e')));
+    } finally {
+      setState(() {
+        _isPerformingOcr = false;
+      });
+    }
   }
 
   Future<void> _scanDocument() async {
@@ -67,7 +112,9 @@ class _FolderScreenState extends State<FolderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_currentFolder.name)),
-      body: _currentFolder.imagePaths.isNotEmpty
+      body: _isPerformingOcr
+          ? const Center(child: CircularProgressIndicator())
+          : _currentFolder.imagePaths.isNotEmpty
           ? ListView.builder(
               itemCount: _currentFolder.imagePaths.length,
               itemBuilder: (context, index) {
@@ -90,10 +137,23 @@ class _FolderScreenState extends State<FolderScreen> {
               },
             )
           : const Center(child: Text('No documents scanned yet.')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _scanDocument,
-        tooltip: 'Scan Document',
-        child: const Icon(Icons.camera_alt),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: "scanButton",
+            onPressed: _scanDocument,
+            tooltip: 'Scan Document',
+            child: const Icon(Icons.camera_alt),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: "ocrButton",
+            onPressed: _performOcr,
+            tooltip: 'Perform OCR',
+            child: const Icon(Icons.text_fields),
+          ),
+        ],
       ),
     );
   }

@@ -37,6 +37,13 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packagingOptions {
+        pickFirst("lib/x86/libpng.so")
+        pickFirst("lib/x86_64/libpng.so")
+        pickFirst("lib/arm64-v8a/libpng.so")
+        pickFirst("lib/armeabi-v7a/libpng.so")
+    }
 }
 
 flutter {

@@ -108,6 +108,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "addFolderButton",
         onPressed: _showAddFolderDialog,
         child: const Icon(Icons.create_new_folder),
       ),
