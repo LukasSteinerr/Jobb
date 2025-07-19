@@ -89,6 +89,26 @@ class _FolderScreenState extends State<FolderScreen> {
   }
 
   Future<void> _sendPdfToOcr(String path) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Processing..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     try {
       var request = http.MultipartRequest(
         'POST',
@@ -140,6 +160,8 @@ class _FolderScreenState extends State<FolderScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error sending PDF to OCR: $e')));
+    } finally {
+      Navigator.of(context).pop();
     }
   }
 
