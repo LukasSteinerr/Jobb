@@ -17,6 +17,8 @@ class PdfBarcodeScannerScreen extends StatefulWidget {
 class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   String? barcodeValue;
   late MultiSplitViewController _controller;
+  final MobileScannerController _scannerController = MobileScannerController();
+  bool _isFlashOn = false;
 
   @override
   void initState() {
@@ -37,19 +39,53 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
     );
   }
 
+  Future<void> _toggleFlash() async {
+    _scannerController.toggleTorch();
+    setState(() {
+      _isFlashOn = !_isFlashOn;
+    });
+  }
+
   Widget _buildBarcodeScanner() {
     return Column(
       children: [
         Expanded(
-          child: MobileScanner(
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                setState(() {
-                  barcodeValue = barcodes.first.rawValue;
-                });
-              }
-            },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              MobileScanner(
+                controller: _scannerController,
+                onDetect: (capture) {
+                  final List<Barcode> barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
+                    setState(() {
+                      barcodeValue = barcodes.first.rawValue;
+                    });
+                  }
+                },
+              ),
+              Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: IconButton(
+                  color: Colors.white,
+                  icon: Icon(
+                    _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                    color: _isFlashOn ? Colors.yellow : Colors.grey,
+                  ),
+                  iconSize: 32.0,
+                  onPressed: _toggleFlash,
+                ),
+              ),
+            ],
           ),
         ),
         if (barcodeValue != null)
