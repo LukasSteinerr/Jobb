@@ -73,7 +73,7 @@ class _FolderListScreenState extends State<FolderListScreen> {
                 Navigator.of(context).pop();
               },
             ),
-            TextButton(child: const Text('Create'), onPressed: _addFolder),
+            TextButton(onPressed: _addFolder, child: const Text('Create')),
           ],
         );
       },

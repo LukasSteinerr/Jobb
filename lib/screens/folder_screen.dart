@@ -5,6 +5,8 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/folder.dart';
 
 class FolderScreen extends StatefulWidget {
@@ -42,8 +44,9 @@ class _FolderScreenState extends State<FolderScreen> {
           final image = pw.MemoryImage(file.readAsBytesSync());
           pdf.addPage(
             pw.Page(
+              margin: pw.EdgeInsets.zero,
               build: (pw.Context context) {
-                return pw.Center(child: pw.Image(image));
+                return pw.Image(image, fit: pw.BoxFit.fill);
               },
             ),
           );
@@ -72,6 +75,51 @@ class _FolderScreenState extends State<FolderScreen> {
       _currentFolder.imagePaths.removeAt(index);
     });
     widget.onUpdate(_currentFolder);
+  }
+
+  Future<void> _sendPdfToOcr(String path) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://192.168.0.16:8000/process-pdf/'),
+      );
+      request.files.add(await http.MultipartFile.fromPath('file', path));
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final folderDir = Directory('${appDir.path}/${_currentFolder.id}');
+        final fileName = path.split('/').last;
+        final newPath = '${folderDir.path}/processed_$fileName';
+        final file = File(newPath);
+        await file.writeAsBytes(await response.stream.toBytes());
+
+        setState(() {
+          _currentFolder.imagePaths.add(newPath);
+        });
+        widget.onUpdate(_currentFolder);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File processed successfully!')),
+        );
+      } else {
+        final responseBody = await response.stream.bytesToString();
+        print('Error processing PDF: ${response.statusCode}');
+        print('Response body: $responseBody');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error processing PDF: ${response.statusCode} ${response.reasonPhrase}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error sending PDF to OCR: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error sending PDF to OCR: $e')));
+    }
   }
 
   @override
@@ -115,6 +163,10 @@ class _FolderScreenState extends State<FolderScreen> {
                                     path.split('/').last,
                                     style: const TextStyle(fontSize: 16),
                                   ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.send_to_mobile),
+                                  onPressed: () => _sendPdfToOcr(path),
                                 ),
                               ],
                             ),
