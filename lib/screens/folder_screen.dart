@@ -21,6 +21,8 @@ class FolderScreen extends StatefulWidget {
 
 class _FolderScreenState extends State<FolderScreen> {
   late Folder _currentFolder;
+  bool _isSelectionMode = false;
+  final List<int> _selectedIndices = [];
 
   @override
   void initState() {
@@ -57,10 +59,7 @@ class _FolderScreenState extends State<FolderScreen> {
         final pdfFile = File(newPath);
         await pdfFile.writeAsBytes(await pdf.save());
 
-        setState(() {
-          _currentFolder.imagePaths.add(newPath);
-        });
-        widget.onUpdate(_currentFolder);
+        await _sendPdfToOcr(newPath);
       }
     } catch (e) {
       print('Error scanning document: $e');
@@ -73,6 +72,18 @@ class _FolderScreenState extends State<FolderScreen> {
   void _deleteImage(int index) {
     setState(() {
       _currentFolder.imagePaths.removeAt(index);
+    });
+    widget.onUpdate(_currentFolder);
+  }
+
+  void _deleteSelectedImages() {
+    _selectedIndices.sort((a, b) => b.compareTo(a));
+    setState(() {
+      for (var index in _selectedIndices) {
+        _currentFolder.imagePaths.removeAt(index);
+      }
+      _isSelectionMode = false;
+      _selectedIndices.clear();
     });
     widget.onUpdate(_currentFolder);
   }
@@ -94,8 +105,18 @@ class _FolderScreenState extends State<FolderScreen> {
         final file = File(newPath);
         await file.writeAsBytes(await response.stream.toBytes());
 
+        final originalFile = File(path);
+        if (await originalFile.exists()) {
+          await originalFile.delete();
+        }
+
         setState(() {
-          _currentFolder.imagePaths.add(newPath);
+          final index = _currentFolder.imagePaths.indexOf(path);
+          if (index != -1) {
+            _currentFolder.imagePaths[index] = newPath;
+          } else {
+            _currentFolder.imagePaths.add(newPath);
+          }
         });
         widget.onUpdate(_currentFolder);
 
@@ -125,63 +146,99 @@ class _FolderScreenState extends State<FolderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_currentFolder.name)),
+      appBar: AppBar(
+        title: Text(
+          _isSelectionMode
+              ? '${_selectedIndices.length} selected'
+              : _currentFolder.name,
+        ),
+        actions: _isSelectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: _deleteSelectedImages,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    setState(() {
+                      _isSelectionMode = false;
+                      _selectedIndices.clear();
+                    });
+                  },
+                ),
+              ]
+            : [],
+      ),
       body: _currentFolder.imagePaths.isNotEmpty
           ? ListView.builder(
               itemCount: _currentFolder.imagePaths.length,
               itemBuilder: (context, index) {
                 final path = _currentFolder.imagePaths[index];
                 final isPdf = path.toLowerCase().endsWith('.pdf');
+                final isSelected = _selectedIndices.contains(index);
 
                 return Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: InkWell(
+                  child: GestureDetector(
+                    onLongPress: () {
+                      setState(() {
+                        _isSelectionMode = true;
+                        _selectedIndices.add(index);
+                      });
+                    },
                     onTap: () {
-                      if (isPdf) {
-                        OpenFile.open(path);
+                      if (_isSelectionMode) {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedIndices.remove(index);
+                            if (_selectedIndices.isEmpty) {
+                              _isSelectionMode = false;
+                            }
+                          } else {
+                            _selectedIndices.add(index);
+                          }
+                        });
+                      } else {
+                        if (isPdf) {
+                          OpenFile.open(path);
+                        }
                       }
                     },
-                    child: Stack(
-                      children: [
-                        if (isPdf)
-                          Container(
-                            padding: const EdgeInsets.all(8.0),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.picture_as_pdf,
-                                  size: 50,
-                                  color: Colors.red,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    path.split('/').last,
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.send_to_mobile),
-                                  onPressed: () => _sendPdfToOcr(path),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          Image.file(File(path)),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteImage(index),
-                          ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isSelected ? Colors.blue : Colors.grey,
                         ),
-                      ],
+                        borderRadius: BorderRadius.circular(8.0),
+                        color: isSelected ? Colors.blue.withOpacity(0.3) : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          if (isPdf)
+                            Container(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.picture_as_pdf,
+                                    size: 50,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      path.split('/').last,
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Image.file(File(path)),
+                        ],
+                      ),
                     ),
                   ),
                 );
