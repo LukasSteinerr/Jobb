@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/folder.dart';
+import 'pdf_barcode_scanner_screen.dart';
 
 class FolderScreen extends StatefulWidget {
   final Folder folder;
@@ -223,7 +224,13 @@ class _FolderScreenState extends State<FolderScreen> {
                         });
                       } else {
                         if (isPdf) {
-                          OpenFile.open(path);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  PdfBarcodeScannerScreen(pdfPath: path),
+                            ),
+                          );
                         }
                       }
                     },
