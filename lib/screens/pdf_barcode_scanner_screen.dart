@@ -35,7 +35,26 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('PDF & Barcode Scanner')),
-      body: MultiSplitView(axis: Axis.vertical, controller: _controller),
+      body: MultiSplitViewTheme(
+        data: MultiSplitViewThemeData(dividerThickness: 25),
+        child: MultiSplitView(
+          axis: Axis.vertical,
+          controller: _controller,
+          dividerBuilder:
+              (axis, index, resizable, dragging, highlighted, themeData) {
+                return Container(
+                  color: dragging
+                      ? Theme.of(context).scaffoldBackgroundColor
+                      : Theme.of(context).scaffoldBackgroundColor,
+                  child: Icon(
+                    Icons.drag_indicator,
+                    color: highlighted ? Colors.grey : Colors.grey,
+                    size: 20,
+                  ),
+                );
+              },
+        ),
+      ),
     );
   }
 
