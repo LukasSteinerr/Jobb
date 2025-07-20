@@ -18,6 +18,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   String? barcodeValue;
   late MultiSplitViewController _controller;
   final MobileScannerController _scannerController = MobileScannerController();
+  final PdfViewerController _pdfViewerController = PdfViewerController();
   bool _isFlashOn = false;
 
   @override
@@ -77,9 +78,17 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
                 onDetect: (capture) {
                   final List<Barcode> barcodes = capture.barcodes;
                   if (barcodes.isNotEmpty) {
-                    setState(() {
-                      barcodeValue = barcodes.first.rawValue;
-                    });
+                    final String? scannedBarcode = barcodes.first.rawValue;
+                    // Regex for 9 digits starting with 58
+                    final RegExp barcodePattern = RegExp(r'^58\d{7}$');
+
+                    if (scannedBarcode != null &&
+                        barcodePattern.hasMatch(scannedBarcode)) {
+                      setState(() {
+                        barcodeValue = scannedBarcode;
+                        _pdfViewerController.searchText(barcodeValue!);
+                      });
+                    }
                   }
                 },
               ),
@@ -117,6 +126,9 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   }
 
   Widget _buildPdfViewer() {
-    return SfPdfViewer.file(File(widget.pdfPath));
+    return SfPdfViewer.file(
+      File(widget.pdfPath),
+      controller: _pdfViewerController,
+    );
   }
 }

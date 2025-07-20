@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/folder.dart';
 import 'pdf_barcode_scanner_screen.dart';
+import 'pdf_viewer_screen.dart';
 
 class FolderScreen extends StatefulWidget {
   final Folder folder;
@@ -87,6 +89,35 @@ class _FolderScreenState extends State<FolderScreen> {
       _selectedIndices.clear();
     });
     widget.onUpdate(_currentFolder);
+  }
+
+  Future<void> _pickPdf() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (result != null) {
+        final path = result.files.single.path!;
+        final appDir = await getApplicationDocumentsDirectory();
+        final folderDir = Directory('${appDir.path}/${_currentFolder.id}');
+        if (!await folderDir.exists()) {
+          await folderDir.create(recursive: true);
+        }
+
+        final fileName = path.split('/').last;
+        final newPath = '${folderDir.path}/$fileName';
+        final newFile = await File(path).copy(newPath);
+
+        await _sendPdfToOcr(newFile.path);
+      }
+    } catch (e) {
+      print('Error picking PDF: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking PDF: $e')));
+    }
   }
 
   Future<void> _sendPdfToOcr(String path) async {
@@ -224,12 +255,46 @@ class _FolderScreenState extends State<FolderScreen> {
                         });
                       } else {
                         if (isPdf) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  PdfBarcodeScannerScreen(pdfPath: path),
-                            ),
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text('Open PDF'),
+                                content: const Text(
+                                  'How would you like to open the PDF?',
+                                ),
+                                actions: <Widget>[
+                                  TextButton(
+                                    child: const Text('With Scanner'),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              PdfBarcodeScannerScreen(
+                                                pdfPath: path,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  TextButton(
+                                    child: const Text('Just PDF'),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              PdfViewerScreen(pdfPath: path),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
                           );
                         }
                       }
@@ -274,10 +339,21 @@ class _FolderScreenState extends State<FolderScreen> {
               },
             )
           : const Center(child: Text('No documents scanned yet.')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _scanDocument,
-        tooltip: 'Scan Document',
-        child: const Icon(Icons.camera_alt),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _scanDocument,
+            tooltip: 'Scan Document',
+            child: const Icon(Icons.camera_alt),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: _pickPdf,
+            tooltip: 'Upload PDF',
+            child: const Icon(Icons.upload_file),
+          ),
+        ],
       ),
     );
   }
