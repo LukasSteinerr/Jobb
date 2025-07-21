@@ -5,6 +5,8 @@ import 'package:multi_split_view/multi_split_view.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+enum BarcodeStatus { none, found, notFound }
+
 class PdfBarcodeScannerScreen extends StatefulWidget {
   final String pdfPath;
   const PdfBarcodeScannerScreen({super.key, required this.pdfPath});
@@ -20,7 +22,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   final MobileScannerController _scannerController = MobileScannerController();
   final PdfViewerController _pdfViewerController = PdfViewerController();
   bool _isFlashOn = false;
-  bool _isBarcodeFound = false;
+  BarcodeStatus _barcodeStatus = BarcodeStatus.none;
 
   @override
   void initState() {
@@ -78,31 +80,32 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
                 controller: _scannerController,
                 onDetect: (capture) {
                   final List<Barcode> barcodes = capture.barcodes;
+                  final RegExp barcodePattern = RegExp(r'^58\d{7}$');
+
                   if (barcodes.isNotEmpty) {
                     final String? scannedBarcode = barcodes.first.rawValue;
-                    // Regex for 9 digits starting with 58
-                    final RegExp barcodePattern = RegExp(r'^58\d{7}$');
-
                     if (scannedBarcode != null &&
                         barcodePattern.hasMatch(scannedBarcode)) {
-                      if (!_isBarcodeFound || barcodeValue != scannedBarcode) {
+                      // Barcode is valid and matches pattern
+                      if (barcodeValue != scannedBarcode) {
                         setState(() {
                           barcodeValue = scannedBarcode;
-                          _pdfViewerController.searchText(barcodeValue!);
-                          _isBarcodeFound = true;
                         });
+                        _searchInPdf(scannedBarcode);
                       }
                     } else {
-                      if (_isBarcodeFound) {
+                      // Barcode is present, but doesn't match pattern
+                      if (_barcodeStatus != BarcodeStatus.none) {
                         setState(() {
-                          _isBarcodeFound = false;
+                          _barcodeStatus = BarcodeStatus.none;
                         });
                       }
                     }
                   } else {
-                    if (_isBarcodeFound) {
+                    // No barcodes detected
+                    if (_barcodeStatus != BarcodeStatus.none) {
                       setState(() {
-                        _isBarcodeFound = false;
+                        _barcodeStatus = BarcodeStatus.none;
                       });
                     }
                   }
@@ -112,10 +115,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
                 width: 250,
                 height: 250,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: _isBarcodeFound ? Colors.green : Colors.white,
-                    width: 2,
-                  ),
+                  border: Border.all(color: _getBorderColor(), width: 2),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -142,6 +142,34 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
           ),
       ],
     );
+  }
+
+  void _searchInPdf(String barcode) {
+    final searchResult = _pdfViewerController.searchText(barcode);
+    searchResult.addListener(() {
+      if (searchResult.isSearchCompleted) {
+        setState(() {
+          if (searchResult.hasResult) {
+            _barcodeStatus = BarcodeStatus.found;
+          } else {
+            _barcodeStatus = BarcodeStatus.notFound;
+          }
+        });
+        searchResult.removeListener(() {});
+      }
+    });
+  }
+
+  Color _getBorderColor() {
+    switch (_barcodeStatus) {
+      case BarcodeStatus.found:
+        return Colors.green;
+      case BarcodeStatus.notFound:
+        return Colors.red;
+      case BarcodeStatus.none:
+      default:
+        return Colors.white;
+    }
   }
 
   Widget _buildPdfViewer() {
