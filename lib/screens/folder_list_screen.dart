@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/folder.dart';
 import 'folder_screen.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class FolderListScreen extends StatefulWidget {
   const FolderListScreen({super.key});
@@ -56,6 +57,13 @@ class _FolderListScreenState extends State<FolderListScreen> {
     }
   }
 
+  void _deleteFolder(int index) {
+    setState(() {
+      _folders.removeAt(index);
+    });
+    _saveFolders();
+  }
+
   void _showAddFolderDialog() {
     showDialog(
       context: context,
@@ -87,23 +95,39 @@ class _FolderListScreenState extends State<FolderListScreen> {
       body: ListView.builder(
         itemCount: _folders.length,
         itemBuilder: (context, index) {
-          return ListTile(
-            title: Text(_folders[index].name),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => FolderScreen(
-                    folder: _folders[index],
-                    onUpdate: (updatedFolder) {
-                      setState(() {
-                        _folders[index] = updatedFolder;
-                      });
-                      _saveFolders();
-                    },
-                  ),
+          final folder = _folders[index];
+          return Slidable(
+            key: ValueKey(folder.id),
+            endActionPane: ActionPane(
+              motion: const ScrollMotion(),
+              children: [
+                SlidableAction(
+                  onPressed: (context) => _deleteFolder(index),
+                  backgroundColor: const Color(0xFFFE4A49),
+                  foregroundColor: Colors.white,
+                  icon: Icons.delete,
+                  label: 'Delete',
                 ),
-              );
-            },
+              ],
+            ),
+            child: ListTile(
+              title: Text(folder.name),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => FolderScreen(
+                      folder: folder,
+                      onUpdate: (updatedFolder) {
+                        setState(() {
+                          _folders[index] = updatedFolder;
+                        });
+                        _saveFolders();
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
