@@ -138,7 +138,17 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
         if (barcodeValue != null)
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text('Barcode: $barcodeValue'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Barcode: $barcodeValue'),
+                const SizedBox(width: 8),
+                if (_barcodeStatus == BarcodeStatus.found)
+                  const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                else if (_barcodeStatus == BarcodeStatus.notFound)
+                  const Icon(Icons.cancel, color: Colors.red, size: 20),
+              ],
+            ),
           ),
       ],
     );
