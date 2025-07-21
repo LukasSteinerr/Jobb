@@ -14,6 +14,7 @@ class PdfViewerScreen extends StatefulWidget {
 
 class _PdfViewerScreenState extends State<PdfViewerScreen> {
   final PdfViewerController _pdfViewerController = PdfViewerController();
+  final UndoHistoryController _undoHistoryController = UndoHistoryController();
   final GlobalKey<SearchToolbarState> _textSearchKey = GlobalKey();
   late bool _showToolbar;
   late bool _showScrollHead;
@@ -96,6 +97,22 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     });
                   },
                 ),
+                ValueListenableBuilder(
+                  valueListenable: _undoHistoryController,
+                  builder: (context, value, child) {
+                    return IconButton(
+                      icon: Icon(
+                        Icons.undo,
+                        color: _undoHistoryController.value.canUndo
+                            ? Colors.black
+                            : Colors.grey,
+                      ),
+                      onPressed: () {
+                        _undoHistoryController.undo();
+                      },
+                    );
+                  },
+                ),
               ],
             ),
       body: Stack(
@@ -103,6 +120,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           SfPdfViewer.file(
             File(widget.pdfPath),
             controller: _pdfViewerController,
+            undoController: _undoHistoryController,
             canShowScrollHead: _showScrollHead,
           ),
           Visibility(
