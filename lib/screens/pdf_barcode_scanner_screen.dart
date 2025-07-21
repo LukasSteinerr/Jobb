@@ -23,6 +23,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   final PdfViewerController _pdfViewerController = PdfViewerController();
   bool _isFlashOn = false;
   BarcodeStatus _barcodeStatus = BarcodeStatus.none;
+  BarcodeStatus _lastSearchResult = BarcodeStatus.none;
 
   @override
   void initState() {
@@ -90,6 +91,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
                       if (barcodeValue != scannedBarcode) {
                         setState(() {
                           barcodeValue = scannedBarcode;
+                          _lastSearchResult = BarcodeStatus.none;
                         });
                         _searchInPdf(scannedBarcode);
                       }
@@ -143,9 +145,9 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
               children: [
                 Text('Barcode: $barcodeValue'),
                 const SizedBox(width: 8),
-                if (_barcodeStatus == BarcodeStatus.found)
+                if (_lastSearchResult == BarcodeStatus.found)
                   const Icon(Icons.check_circle, color: Colors.green, size: 20)
-                else if (_barcodeStatus == BarcodeStatus.notFound)
+                else if (_lastSearchResult == BarcodeStatus.notFound)
                   const Icon(Icons.cancel, color: Colors.red, size: 20),
               ],
             ),
@@ -161,8 +163,10 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
         setState(() {
           if (searchResult.hasResult) {
             _barcodeStatus = BarcodeStatus.found;
+            _lastSearchResult = BarcodeStatus.found;
           } else {
             _barcodeStatus = BarcodeStatus.notFound;
+            _lastSearchResult = BarcodeStatus.notFound;
           }
         });
         searchResult.removeListener(() {});
