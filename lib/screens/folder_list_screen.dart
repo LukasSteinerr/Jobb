@@ -64,6 +64,13 @@ class _FolderListScreenState extends State<FolderListScreen> {
     _saveFolders();
   }
 
+  void _renameFolder(int index, String newName) {
+    setState(() {
+      _folders[index].name = newName;
+    });
+    _saveFolders();
+  }
+
   void _showAddFolderDialog() {
     showDialog(
       context: context,
@@ -82,6 +89,41 @@ class _FolderListScreenState extends State<FolderListScreen> {
               },
             ),
             TextButton(onPressed: _addFolder, child: const Text('Create')),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRenameFolderDialog(int index, String currentName) {
+    _folderNameController.text = currentName;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename Folder'),
+          content: TextField(
+            controller: _folderNameController,
+            decoration: const InputDecoration(hintText: "New Folder Name"),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _folderNameController.clear();
+              },
+            ),
+            TextButton(
+              onPressed: () {
+                if (_folderNameController.text.isNotEmpty) {
+                  _renameFolder(index, _folderNameController.text);
+                  Navigator.of(context).pop();
+                  _folderNameController.clear();
+                }
+              },
+              child: const Text('Rename'),
+            ),
           ],
         );
       },
@@ -107,6 +149,14 @@ class _FolderListScreenState extends State<FolderListScreen> {
                   foregroundColor: Colors.white,
                   icon: Icons.delete,
                   label: 'Delete',
+                ),
+                SlidableAction(
+                  onPressed: (context) =>
+                      _showRenameFolderDialog(index, folder.name),
+                  backgroundColor: const Color(0xFF2196F3),
+                  foregroundColor: Colors.white,
+                  icon: Icons.edit,
+                  label: 'Rename',
                 ),
               ],
             ),

@@ -73,10 +73,115 @@ class _FolderScreenState extends State<FolderScreen> {
   }
 
   void _deleteImage(int index) {
+    final filePath = _currentFolder.imagePaths[index];
+    File(filePath).deleteSync(); // Delete the actual file
     setState(() {
       _currentFolder.imagePaths.removeAt(index);
     });
     widget.onUpdate(_currentFolder);
+  }
+
+  Future<void> _renamePdf(int index, String newName) async {
+    final oldPath = _currentFolder.imagePaths[index];
+    final directory = oldPath.substring(0, oldPath.lastIndexOf('/'));
+    final fileExtension = oldPath.split('.').last;
+    final newPath = '$directory/$newName.$fileExtension';
+
+    try {
+      final oldFile = File(oldPath);
+      if (await oldFile.exists()) {
+        await oldFile.rename(newPath);
+        setState(() {
+          _currentFolder.imagePaths[index] = newPath;
+        });
+        widget.onUpdate(_currentFolder);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF renamed successfully!')),
+        );
+      }
+    } catch (e) {
+      print('Error renaming PDF: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error renaming PDF: $e')));
+    }
+  }
+
+  void _showRenamePdfDialog(int index, String currentName) {
+    final TextEditingController _pdfNameController = TextEditingController(
+      text: currentName.split('/').last.split('.').first,
+    );
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename PDF'),
+          content: TextField(
+            controller: _pdfNameController,
+            decoration: const InputDecoration(hintText: "New PDF Name"),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              onPressed: () {
+                if (_pdfNameController.text.isNotEmpty) {
+                  _renamePdf(index, _pdfNameController.text);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPdfOptionsBottomSheet(int index, String path) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Rename'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRenamePdfDialog(index, path);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('Delete'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteImage(index);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.select_all),
+                title: const Text('Select'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _isSelectionMode = true;
+                    _selectedIndices.add(index);
+                  });
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _deleteSelectedImages() {
@@ -236,10 +341,7 @@ class _FolderScreenState extends State<FolderScreen> {
                   padding: const EdgeInsets.all(8.0),
                   child: GestureDetector(
                     onLongPress: () {
-                      setState(() {
-                        _isSelectionMode = true;
-                        _selectedIndices.add(index);
-                      });
+                      _showPdfOptionsBottomSheet(index, path);
                     },
                     onTap: () {
                       if (_isSelectionMode) {
