@@ -20,6 +20,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   final MobileScannerController _scannerController = MobileScannerController();
   final PdfViewerController _pdfViewerController = PdfViewerController();
   bool _isFlashOn = false;
+  bool _isBarcodeFound = false;
 
   @override
   void initState() {
@@ -84,9 +85,24 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
 
                     if (scannedBarcode != null &&
                         barcodePattern.hasMatch(scannedBarcode)) {
+                      if (!_isBarcodeFound || barcodeValue != scannedBarcode) {
+                        setState(() {
+                          barcodeValue = scannedBarcode;
+                          _pdfViewerController.searchText(barcodeValue!);
+                          _isBarcodeFound = true;
+                        });
+                      }
+                    } else {
+                      if (_isBarcodeFound) {
+                        setState(() {
+                          _isBarcodeFound = false;
+                        });
+                      }
+                    }
+                  } else {
+                    if (_isBarcodeFound) {
                       setState(() {
-                        barcodeValue = scannedBarcode;
-                        _pdfViewerController.searchText(barcodeValue!);
+                        _isBarcodeFound = false;
                       });
                     }
                   }
@@ -96,7 +112,10 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
                 width: 250,
                 height: 250,
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(
+                    color: _isBarcodeFound ? Colors.green : Colors.white,
+                    width: 2,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
