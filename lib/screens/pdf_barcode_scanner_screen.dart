@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:multi_split_view/multi_split_view.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:just_audio/just_audio.dart';
 
 enum BarcodeStatus { none, found, notFound }
 
@@ -24,6 +25,7 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
   bool _isFlashOn = false;
   BarcodeStatus _barcodeStatus = BarcodeStatus.none;
   BarcodeStatus _lastSearchResult = BarcodeStatus.none;
+  final _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -34,6 +36,12 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
         Area(builder: (context, area) => _buildPdfViewer()),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   @override
@@ -164,14 +172,25 @@ class _PdfBarcodeScannerScreenState extends State<PdfBarcodeScannerScreen> {
           if (searchResult.hasResult) {
             _barcodeStatus = BarcodeStatus.found;
             _lastSearchResult = BarcodeStatus.found;
+            _playSound('ding.mp3');
           } else {
             _barcodeStatus = BarcodeStatus.notFound;
             _lastSearchResult = BarcodeStatus.notFound;
+            _playSound('error.mp3');
           }
         });
         searchResult.removeListener(() {});
       }
     });
+  }
+
+  Future<void> _playSound(String assetName) async {
+    try {
+      await _audioPlayer.setAsset('assets/$assetName');
+      _audioPlayer.play();
+    } catch (e) {
+      debugPrint("Error loading or playing audio: $e");
+    }
   }
 
   Color _getBorderColor() {
